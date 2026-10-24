@@ -1,0 +1,39 @@
+name: Build APK from ZIP
+on:
+  push:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Unzip project
+        run: |
+          ZIP=$(ls *.zip | head -n1)
+          echo "Using $ZIP"
+          mkdir -p /tmp/proj
+          unzip -q "$ZIP" -d /tmp/proj
+          PROJ=$(dirname "$(find /tmp/proj -name settings.gradle.kts | head -n1)")
+          echo "PROJ=$PROJ" >> $GITHUB_ENV
+
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 17
+
+      - uses: gradle/actions/setup-gradle@v4
+        with:
+          gradle-version: 8.7
+
+      - name: Build debug APK
+        run: |
+          cd "$PROJ"
+          gradle assembleDebug --no-daemon --stacktrace
+          mkdir -p "$GITHUB_WORKSPACE/out"
+          cp app/build/outputs/apk/debug/*.apk "$GITHUB_WORKSPACE/out/"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: VideoEnhancer-APK
+          path: out/*.apk
